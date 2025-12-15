@@ -1,9 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Stars as DreiStars, Sparkles } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Stars as DreiStars, Sparkles, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { PostProcessing } from './PostProcessing';
-import { Ocean } from './Ocean';
 import { Pearl } from './Pearl';
 import { Stars } from './Stars';
 import { StarData } from '../types';
@@ -16,46 +15,126 @@ interface ExperienceProps {
 
 const GalaxyBackground: React.FC = () => {
     const texture = useMemo(() => {
+        const size = 2048;
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 1024;
+        canvas.width = size;
+        canvas.height = size;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-            // Lighter cosmic base
-            const gradient = ctx.createLinearGradient(0, 0, 0, 1024);
-            gradient.addColorStop(0, '#050520'); // Dark Blue start
-            gradient.addColorStop(0.5, '#151030'); // Mid purple
-            gradient.addColorStop(1, '#050520');
+            // 1. Deep Space Base
+            const gradient = ctx.createLinearGradient(0, 0, 0, size);
+            gradient.addColorStop(0, '#020008'); 
+            gradient.addColorStop(0.5, '#0a0514'); 
+            gradient.addColorStop(1, '#020008');
             ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 1024, 1024);
+            ctx.fillRect(0, 0, size, size);
 
-            // Brighter Nebula Clouds
-            for (let i = 0; i < 300; i++) {
-                const x = Math.random() * 1024;
-                const y = Math.random() * 1024;
-                const r = Math.random() * 200 + 50;
-                const opacity = Math.random() * 0.2; 
+            // 2. Background Star Dust (Reduced count, bigger size)
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 3000; i++) { // Reduced from 15000
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const opacity = Math.random() * 0.3 + 0.1; // Brighter
+                const s = Math.random() * 1.5; // Bigger
+                ctx.globalAlpha = opacity;
+                ctx.fillRect(x, y, s, s);
+            }
+
+            // 3. Helper: Draw Spiral Galaxy
+            const drawSpiralGalaxy = (cx: number, cy: number, radius: number, color: string) => {
+                const arms = 3 + Math.floor(Math.random() * 3); 
+                const particles = 200; // Reduced particles per galaxy
                 
-                // Colors: Vivid Blue, Magenta, Cyan
-                const colors = ['#5555ff', '#ff33cc', '#33ffff', '#9933ff'];
-                const color = colors[Math.floor(Math.random() * colors.length)];
+                for (let i = 0; i < particles; i++) {
+                    const dist = Math.pow(Math.random(), 2); 
+                    const angle = Math.random() * Math.PI * 2;
+                    const armOffset = (Math.floor(Math.random() * arms) / arms) * Math.PI * 2;
+                    
+                    const spiralAngle = dist * Math.PI * 4 + armOffset; 
+                    
+                    const r = dist * radius;
+                    const x = cx + Math.cos(spiralAngle) * r + (Math.random() - 0.5) * (radius * 0.2); 
+                    const y = cy + Math.sin(spiralAngle) * r + (Math.random() - 0.5) * (radius * 0.2);
+
+                    const size = Math.random() * 2.5 + 1.0; // Much bigger galaxy stars
+                    
+                    const radGrad = ctx.createRadialGradient(x, y, 0, x, y, size * 2);
+                    radGrad.addColorStop(0, color);
+                    radGrad.addColorStop(1, 'transparent');
+                    
+                    ctx.fillStyle = radGrad;
+                    ctx.globalAlpha = (1 - dist) * 0.9 + 0.1; 
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 
+                // Core Glow
+                const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.3);
+                coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                coreGrad.addColorStop(0.5, color);
+                coreGrad.addColorStop(1, 'transparent');
+                ctx.fillStyle = coreGrad;
+                ctx.globalAlpha = 0.4;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            };
+
+            // 4. Generate Random Galaxies
+            const galaxyColors = [
+                '#ff3366', // Hot Red/Pink
+                '#3366ff', // Deep Blue
+                '#00ffff', // Cyan
+                '#aa00ff', // Violet
+                '#ffaa00', // Gold/Warm
+            ];
+
+            // ~8 prominent galaxies
+            for (let i = 0; i < 8; i++) {
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const r = 80 + Math.random() * 150; 
+                const color = galaxyColors[Math.floor(Math.random() * galaxyColors.length)];
+                drawSpiralGalaxy(x, y, r, color);
+            }
+
+            // 5. Large Nebula Clouds
+            for (let i = 0; i < 15; i++) {
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const r = 300 + Math.random() * 400;
+                
+                const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+                const color = galaxyColors[Math.floor(Math.random() * galaxyColors.length)];
+                
+                grad.addColorStop(0, color);
+                grad.addColorStop(1, 'transparent');
+                
+                ctx.globalAlpha = 0.08; 
+                ctx.fillStyle = grad;
                 ctx.beginPath();
                 ctx.arc(x, y, r, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.globalAlpha = opacity;
                 ctx.fill();
             }
-            
-            // Distant bright stars
-            for (let i = 0; i < 600; i++) {
-                const x = Math.random() * 1024;
-                const y = Math.random() * 1024;
-                const size = Math.random() * 1.5;
+
+            // 6. Bright Foreground Stars on Texture (Reduced count, significantly bigger)
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 80; i++) { // Reduced from 500
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const s = Math.random() * 5 + 2; // Size 2 to 7 pixels
+                
+                // Add a glow to these stars
+                const starGrad = ctx.createRadialGradient(x, y, 0, x, y, s * 2);
+                starGrad.addColorStop(0, '#ffffff');
+                starGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.5)');
+                starGrad.addColorStop(1, 'transparent');
+                ctx.fillStyle = starGrad;
+
+                ctx.globalAlpha = Math.random() * 0.5 + 0.5;
                 ctx.beginPath();
-                ctx.arc(x, y, size, 0, Math.PI * 2);
-                ctx.fillStyle = '#ffffff';
-                ctx.globalAlpha = Math.random() * 0.9 + 0.1;
+                ctx.arc(x, y, s, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
@@ -72,66 +151,42 @@ const GalaxyBackground: React.FC = () => {
 
 // Shooting Star Component
 const ShootingStar: React.FC = () => {
-    const mesh = useRef<THREE.Mesh>(null);
-    const trailRef = useRef<THREE.Mesh>(null);
-    
-    // Timer to track 5s intervals
+    const mesh = useRef<THREE.Group>(null);
     const timer = useRef(0);
     const isAnimating = useRef(false);
-    
-    // Animation progress (0 to 1)
     const progress = useRef(0);
-    
-    // Start and End vectors
     const startPos = useRef(new THREE.Vector3());
     const endPos = useRef(new THREE.Vector3());
 
     useFrame((state, delta) => {
         if (!isAnimating.current) {
             timer.current += delta;
-            if (timer.current >= 5) {
-                // Trigger Animation
+            if (timer.current >= 3 + Math.random() * 5) {
                 timer.current = 0;
                 isAnimating.current = true;
                 progress.current = 0;
-
-                // Randomize positions on the upper hemisphere
-                // Radius around 60-70 to be visible in sky
                 const r = 70;
                 const theta1 = Math.random() * Math.PI * 2;
-                const phi1 = Math.acos(Math.random() * 0.5); // Top hemisphere
-                
+                const phi1 = Math.acos(Math.random() * 0.5); 
                 startPos.current.setFromSphericalCoords(r, phi1, theta1);
-                
-                // End position: some distance away
-                const theta2 = theta1 + (Math.random() - 0.5) * 2; // Random direction
-                const phi2 = Math.min(Math.PI / 2, phi1 + 0.5); // Generally falling down
-                
+                const theta2 = theta1 + (Math.random() - 0.5) * 2; 
+                const phi2 = Math.min(Math.PI / 2, phi1 + 0.5); 
                 endPos.current.setFromSphericalCoords(r, phi2, theta2);
-                
-                // Orient mesh
                 if (mesh.current) {
                     mesh.current.position.copy(startPos.current);
                     mesh.current.lookAt(endPos.current);
                 }
             }
         } else {
-            // Animate
-            progress.current += delta * 1.5; // Speed of meteor
-            
+            progress.current += delta * 1.5;
             if (progress.current >= 1) {
                 isAnimating.current = false;
-                if (mesh.current) mesh.current.scale.set(0,0,0); // Hide
+                if (mesh.current) mesh.current.scale.set(0,0,0);
             } else {
                 if (mesh.current) {
-                    // Move
                     mesh.current.position.lerpVectors(startPos.current, endPos.current, progress.current);
-                    
-                    // Scale effect (grow then shrink)
                     const s = Math.sin(progress.current * Math.PI);
-                    mesh.current.scale.set(s, s, s * 15); // Long tail
-                    
-                    // Simple visibility toggle
+                    mesh.current.scale.set(s, s, s * 20);
                     mesh.current.visible = true;
                 }
             }
@@ -140,11 +195,12 @@ const ShootingStar: React.FC = () => {
 
     return (
         <group>
-            <mesh ref={mesh} visible={false}>
-                {/* A long thin cone or cylinder for the meteor */}
-                <cylinderGeometry args={[0, 0.4, 4, 8]} rotation={[Math.PI / 2, 0, 0]} />
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
-            </mesh>
+            <group ref={mesh} visible={false}>
+                <mesh rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0, 0.2, 4, 8]} />
+                    <meshBasicMaterial color="#ccffff" transparent opacity={0.9} />
+                </mesh>
+            </group>
         </group>
     );
 };
@@ -152,7 +208,16 @@ const ShootingStar: React.FC = () => {
 export const Experience: React.FC<ExperienceProps> = ({ stars, onStarClick, onStarView }) => {
   return (
     <Canvas shadows dpr={[1, 2]}>
-      <PerspectiveCamera makeDefault position={[0, 4, 14]} fov={50} />
+      <PerspectiveCamera makeDefault position={[0, 4, 14]} fov={50}>
+         <spotLight 
+            position={[-12, 12, 0]} 
+            angle={0.6} 
+            penumbra={1} 
+            intensity={2} 
+            color="#dbeafe" 
+            castShadow 
+          />
+      </PerspectiveCamera>
       
       <OrbitControls 
         minPolarAngle={Math.PI / 4} 
@@ -163,48 +228,66 @@ export const Experience: React.FC<ExperienceProps> = ({ stars, onStarClick, onSt
       />
 
       <GalaxyBackground />
-      
+      <Environment preset="night" />
       <ShootingStar />
 
-      {/* Fog - Lighter to match background and show depth without hiding water */}
-      <fog attach="fog" args={['#101025', 20, 100]} />
+      <fog attach="fog" args={['#0a0514', 25, 120]} />
 
-      {/* Lighting - Increased brightness */}
-      <ambientLight intensity={1.5} color="#8888ff" />
-      
-      {/* Main Moonlight */}
-      <spotLight 
-        position={[15, 20, -10]} 
-        angle={0.5} 
-        penumbra={1} 
-        intensity={3} 
-        color="#cceeff" 
-        castShadow 
-      />
-      
-      {/* Rim light for the pearl */}
-      <pointLight position={[-10, 5, 10]} intensity={2} color="#88aaff" />
+      <ambientLight intensity={0.4} color="#aa88ff" />
+      <pointLight position={[-10, 5, 10]} intensity={1.5} color="#88aaff" />
 
       {/* Scene Objects */}
       <Pearl />
-      <Ocean />
-      
-      {/* Pass the click handler to the Stars component */}
       <Stars data={stars} onStarClick={onStarClick} onStarView={onStarView} />
       
-      {/* Intense Cosmic Sparkles */}
+      {/* 
+          OPTIMIZED SPARKLES:
+          Reduced count (saving memory) but Increased Size for "Big & Bright" effect.
+      */}
+      
+      {/* Layer 1: Big Blue Stars */}
       <Sparkles 
-        count={800} 
-        scale={40} 
-        size={4} 
-        speed={0.3} 
-        opacity={0.6} 
+        count={150}        // Reduced from 800
+        scale={60} 
+        size={12}          // Increased from 2 to 12
+        speed={0.2} 
+        opacity={0.9} 
         color="#aaddff" 
         position={[0, 5, 0]}
       />
+
+      {/* Layer 2: Big Red/Pink Stars */}
+      <Sparkles 
+        count={100}        // Reduced from 600
+        scale={50} 
+        size={15}          // Increased from 2.5 to 15
+        speed={0.3} 
+        opacity={0.8} 
+        color="#ff6699" 
+        position={[0, 5, 0]}
+      />
       
-      {/* Background Stars (Far away) */}
-      <DreiStars radius={95} depth={50} count={6000} factor={5} saturation={0} fade speed={0.5} />
+      {/* Layer 3: Scattered Golden Orbs */}
+      <Sparkles 
+        count={120}        // Reduced from 1200
+        scale={45} 
+        size={8}           // Increased from 1 to 8
+        speed={0.1} 
+        opacity={0.7} 
+        color="#ffdd88" 
+        position={[0, 5, 0]}
+      />
+      
+      {/* Background Stars (Far away) - Reduced density, larger size */}
+      <DreiStars 
+        radius={90} 
+        depth={50} 
+        count={1500}       // Reduced from 8000
+        factor={12}        // Increased from 6
+        saturation={1} 
+        fade 
+        speed={0.5} 
+      />
       
       <PostProcessing />
     </Canvas>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Html, Float, useCursor } from '@react-three/drei';
+import { Html, Float, useCursor, Billboard } from '@react-three/drei';
 import { StarData } from '../types';
 
 interface StarsProps {
@@ -86,7 +86,9 @@ const Star: React.FC<{ star: StarData; onStarClick: (id: number) => void; onStar
   return (
     <group position={star.position}>
         <Float speed={1 + Math.random()} rotationIntensity={0.5} floatIntensity={0.5}>
-            <StarShape isActive={star.isActive} onClick={handleClick} onHover={setHovered} />
+            <Billboard>
+                <StarShape isActive={star.isActive} onClick={handleClick} onHover={setHovered} />
+            </Billboard>
             <pointLight 
                 distance={star.isActive ? 6 : 3} 
                 intensity={star.isActive ? 3 : 0.5} 
